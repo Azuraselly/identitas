@@ -1,6 +1,6 @@
-import 'package:connectivity_plus/connectivity_plus.dart';  // Import untuk cek internet
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';  // Import Supabase
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/student.dart';
 import '../utils/styles.dart';
 
@@ -18,16 +18,16 @@ class _AddressWidgetState extends State<AddressWidget> {
   final _jalan = TextEditingController();
   final _rt = TextEditingController();
   final _rw = TextEditingController();
-  final _dusun = TextEditingController();  // Controller untuk dusun (sekarang autocomplete)
+  final _dusun = TextEditingController();
   final _desa = TextEditingController();
   final _kecamatan = TextEditingController();
   final _kabupaten = TextEditingController();
   final _provinsi = TextEditingController();
   final _kodepos = TextEditingController();
 
-  List<String> _dusunSuggestions = [];  // List suggestion dusun dari Supabase
-  bool _isLoading = false;  // Flag untuk loading data
-  String? _errorMessage;  // Pesan error untuk ditampilkan
+  List<String> _dusunSuggestions = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -43,62 +43,15 @@ class _AddressWidgetState extends State<AddressWidget> {
     _provinsi.text = addr.provinsi;
     _kodepos.text = addr.kodePos;
 
-    _fetchDusunSuggestions();  // Fetch suggestion dusun saat init
+    _fetchDusunSuggestions();
   }
 
-  // Fungsi untuk fetch list dusun unik dari Supabase
   Future<void> _fetchDusunSuggestions() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    // Error handling 1: Cek koneksi internet menggunakan connectivity_plus
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult.contains(ConnectivityResult.none)) {
-      setState(() {
-        _errorMessage = 'Tidak ada koneksi internet. Silakan cek jaringan Anda.';
-        _isLoading = false;
-      });
-      return;
-    }
-
-    try {
-      // Query Supabase untuk ambil semua data locations
-      final response = await Supabase.instance.client
-          .from('locations')
-          .select('dusun')
-          .order('dusun', ascending: true);
-
-      // Extract dusun unik
-      final Set<String> uniqueDusun = response.map((item) => item['dusun'] as String).toSet();
-      setState(() {
-        _dusunSuggestions = uniqueDusun.toList();
-        _isLoading = false;
-      });
-    } on PostgrestException catch (e) {
-      // Error handling 2: Masalah koneksi dengan Supabase (misalnya auth, server down)
-      setState(() {
-        _errorMessage = 'Masalah koneksi dengan database: ${e.message}. Silakan coba lagi nanti.';
-        _isLoading = false;
-      });
-    } catch (e) {
-      // Error umum lainnya
-      setState(() {
-        _errorMessage = 'Terjadi kesalahan: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  // Fungsi untuk auto-fill field berdasarkan dusun yang dipilih
-  Future<void> _autoFillFromDusun(String selectedDusun) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    // Cek internet lagi
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult.contains(ConnectivityResult.none)) {
       setState(() {
@@ -109,7 +62,45 @@ class _AddressWidgetState extends State<AddressWidget> {
     }
 
     try {
-      // Query Supabase untuk data berdasarkan dusun (ambil row pertama jika multiple)
+      final response = await Supabase.instance.client
+          .from('locations')
+          .select('dusun')
+          .order('dusun', ascending: true);
+
+      final Set<String> uniqueDusun = response.map((item) => item['dusun'] as String).toSet();
+      setState(() {
+        _dusunSuggestions = uniqueDusun.toList();
+        _isLoading = false;
+      });
+    } on PostgrestException catch (e) {
+      setState(() {
+        _errorMessage = 'Masalah koneksi database: ${e.message}';
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Kesalahan: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _autoFillFromDusun(String selectedDusun) async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.contains(ConnectivityResult.none)) {
+      setState(() {
+        _errorMessage = 'Tidak ada koneksi internet.';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
       final response = await Supabase.instance.client
           .from('locations')
           .select()
@@ -123,8 +114,7 @@ class _AddressWidgetState extends State<AddressWidget> {
           _kecamatan.text = data['kecamatan'];
           _kabupaten.text = data['kabupaten'];
           _kodepos.text = data['kode_pos'];
-          // Provinsi default ke Jawa Timur (bisa tambah kolom jika perlu)
-          _provinsi.text = 'Jawa Timur';  // Asumsi, karena data di Malang
+          _provinsi.text = 'Jawa Timur';
           _isLoading = false;
         });
       } else {
@@ -133,11 +123,6 @@ class _AddressWidgetState extends State<AddressWidget> {
           _isLoading = false;
         });
       }
-    } on PostgrestException catch (e) {
-      setState(() {
-        _errorMessage = 'Masalah koneksi Supabase: ${e.message}';
-        _isLoading = false;
-      });
     } catch (e) {
       setState(() {
         _errorMessage = 'Kesalahan: $e';
@@ -163,88 +148,174 @@ class _AddressWidgetState extends State<AddressWidget> {
 
   @override
   Widget build(BuildContext context) {
+    const iconColor = Color(0xFF3B82F6);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Alamat', style: Styles.header),
         const SizedBox(height: 8),
-        TextFormField(controller: _jalan, decoration: Styles.inputDecoration('Jalan'), onChanged: (_) => _emit()),
+
+        // Jalan
+        TextFormField(
+          controller: _jalan,
+          decoration: Styles.inputDecoration('Jalan').copyWith(
+            prefixIcon: const Icon(Icons.signpost_outlined, color: iconColor),
+          ),
+          onChanged: (_) => _emit(),
+        ),
         const SizedBox(height: 8),
+
+        // RT / RW
         Row(
           children: [
-            Expanded(child: TextFormField(controller: _rt, decoration: Styles.inputDecoration('RT'), onChanged: (_) => _emit())),
+            Expanded(
+              child: TextFormField(
+                controller: _rt,
+                decoration: Styles.inputDecoration('RT').copyWith(
+                  prefixIcon: const Icon(Icons.confirmation_num_outlined, color: iconColor),
+                ),
+                onChanged: (_) => _emit(),
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: TextFormField(controller: _rw, decoration: Styles.inputDecoration('RW'), onChanged: (_) => _emit())),
+            Expanded(
+              child: TextFormField(
+                controller: _rw,
+                decoration: Styles.inputDecoration('RW').copyWith(
+                  prefixIcon: const Icon(Icons.confirmation_num_outlined, color: iconColor),
+                ),
+                onChanged: (_) => _emit(),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
 
-        // Modifikasi: Input dusun jadi Autocomplete dengan suggestion dari Supabase
-        Autocomplete<String>(
-          optionsMaxHeight: 200,
-          optionsViewBuilder: (context, onSelected, options) {
-            return ListView.builder(
-              shrinkWrap: true,
-              itemCount: options.length,
-              itemBuilder: (context, index) {
-                final option = options.elementAt(index);
-                return ListTile(title: Text(option), onTap: () => onSelected(option));
-              },
-            );
-          },
-          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-            controller.text = _dusun.text;  // Sync dengan controller
-            return TextFormField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: Styles.inputDecoration('Dusun (autocomplete)'),
-              onChanged: (value) {
-                _dusun.text = value;
-                _emit();
-              },
-            );
-          },
+        // Dusun (Autocomplete)
+        RawAutocomplete<String>(
+          textEditingController: _dusun,
+          focusNode: FocusNode(),
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text.isEmpty) {
               return const Iterable<String>.empty();
             }
-            return _dusunSuggestions.where((option) {
-              return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-            });
+            return _dusunSuggestions.where(
+              (option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()),
+            );
           },
-          onSelected: (String selection) {
-            _dusun.text = selection;
-            _autoFillFromDusun(selection);  // Trigger auto-fill saat dusun dipilih
+          fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+            return TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: Styles.inputDecoration('Dusun (pilih dari daftar)').copyWith(
+                prefixIcon: const Icon(Icons.location_on_outlined, color: iconColor),
+              ),
+              onChanged: (_) => _emit(),
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 6,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: options.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final opt = options.elementAt(index);
+                      return ListTile(
+                        leading: const Icon(Icons.home_work_outlined, color: iconColor),
+                        title: Text(opt, style: const TextStyle(fontSize: 15)),
+                        onTap: () => onSelected(opt),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+          onSelected: (val) {
+            _dusun.text = val;
+            _autoFillFromDusun(val);
             _emit();
           },
         ),
+        const SizedBox(height: 8),
 
+        // Desa
+        TextFormField(
+          controller: _desa,
+          decoration: Styles.inputDecoration('Desa').copyWith(
+            prefixIcon: const Icon(Icons.villa_outlined, color: iconColor),
+          ),
+          onChanged: (_) => _emit(),
+        ),
         const SizedBox(height: 8),
-        // Field desa, kecamatan, dll. sekarang auto-filled (read-only atau editable manual jika perlu)
-        TextFormField(controller: _desa, decoration: Styles.inputDecoration('Desa (auto-filled)'), onChanged: (_) => _emit()),
-        const SizedBox(height: 8),
+
+        // Kecamatan & Kabupaten
         Row(
           children: [
-            Expanded(child: TextFormField(controller: _kecamatan, decoration: Styles.inputDecoration('Kecamatan (auto-filled)'), onChanged: (_) => _emit())),
+            Expanded(
+              child: TextFormField(
+                controller: _kecamatan,
+                decoration: Styles.inputDecoration('Kecamatan').copyWith(
+                  prefixIcon: const Icon(Icons.map_outlined, color: iconColor),
+                ),
+                onChanged: (_) => _emit(),
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: TextFormField(controller: _kabupaten, decoration: Styles.inputDecoration('Kabupaten (auto-filled)'), onChanged: (_) => _emit())),
+            Expanded(
+              child: TextFormField(
+                controller: _kabupaten,
+                decoration: Styles.inputDecoration('Kabupaten').copyWith(
+                  prefixIcon: const Icon(Icons.apartment_outlined, color: iconColor),
+                ),
+                onChanged: (_) => _emit(),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
+
+        // Provinsi & Kode Pos
         Row(
           children: [
-            Expanded(child: TextFormField(controller: _provinsi, decoration: Styles.inputDecoration('Provinsi (auto-filled)'), onChanged: (_) => _emit())),
+            Expanded(
+              child: TextFormField(
+                controller: _provinsi,
+                decoration: Styles.inputDecoration('Provinsi').copyWith(
+                  prefixIcon: const Icon(Icons.flag_outlined, color: iconColor),
+                ),
+                onChanged: (_) => _emit(),
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: TextFormField(controller: _kodepos, decoration: Styles.inputDecoration('Kode Pos (auto-filled)'), keyboardType: TextInputType.number, onChanged: (_) => _emit())),
+            Expanded(
+              child: TextFormField(
+                controller: _kodepos,
+                decoration: Styles.inputDecoration('Kode Pos').copyWith(
+                  prefixIcon: const Icon(Icons.markunread_mailbox_outlined, color: iconColor),
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (_) => _emit(),
+              ),
+            ),
           ],
         ),
 
-        // Tampilkan loading atau error
         if (_isLoading) const Center(child: CircularProgressIndicator()),
-        if (_errorMessage != null) Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-        ),
+        if (_errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+          ),
       ],
     );
   }

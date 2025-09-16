@@ -5,78 +5,106 @@ import '../widgets/student_card.dart';
 import 'form_screen.dart';
 import '../utils/styles.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _searchQuery = "";
 
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<StudentProvider>(context);
+    final filtered = provider.students
+        .where((s) =>
+            s.nama.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            s.nisn.contains(_searchQuery))
+        .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F4F7), // warna soft abu-abu muda
+      backgroundColor: const Color(0xFFF8FAFC), // background soft putih abu
       appBar: AppBar(
         elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF00B4DB), Color(0xFF0083B0)], // biru teal gradient
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        backgroundColor: Colors.transparent,
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFF00B4DB), Color(0xFF0083B0)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
+          child: const Text(
+            "Identitas Siswa",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white, // jadi ketimpa gradient
+              letterSpacing: 0.5,
             ),
-          ),
-        ),
-        title: Text(
-          'Identitas',
-          style: Styles.header.copyWith(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
           ),
         ),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: provider.students.isEmpty
-            ? _buildEmptyState()
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Daftar Siswa',
-                    style: Styles.header.copyWith(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey[800],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView.separated(
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: provider.students.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 14),
-                      itemBuilder: (context, index) {
-                        final s = provider.students[index];
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOut,
-                          child: StudentCard(student: s),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+      body: Column(
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search, color: Colors.teal),
+                hintText: "Cari siswa berdasarkan nama atau NISN...",
+                hintStyle: TextStyle(color: Colors.grey[500], fontSize: 15),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide(color: Colors.teal.withOpacity(0.2)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: const BorderSide(color: Color(0xFF0083B0), width: 1.5),
+                ),
               ),
+              onChanged: (val) => setState(() => _searchQuery = val),
+            ),
+          ),
+          Expanded(
+            child: filtered.isEmpty
+                ? _buildEmptyState()
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final s = filtered[index];
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOut,
+                        child: StudentCard(student: s),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF0083B0),
-        icon: const Icon(Icons.add, color: Colors.white, size: 28),
+        backgroundColor: const Color(0xFF00B4DB),
+        icon: const Icon(Icons.add, color: Colors.white, size: 26),
         label: const Text(
-          "Tambah Siswa",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          "Tambah",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
         ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: () {
           Navigator.push(
             context,
@@ -96,38 +124,39 @@ class HomeScreen extends StatelessWidget {
           AnimatedContainer(
             duration: const Duration(milliseconds: 600),
             curve: Curves.easeInOut,
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue[100]!, Colors.teal[100]!],
+              gradient: const LinearGradient(
+                colors: [Color(0xFF00B4DB), Color(0xFF0083B0)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.teal.withOpacity(0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: Colors.teal.withOpacity(0.25),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 )
               ],
             ),
-            child: Icon(Icons.people_alt, size: 90, color: Colors.teal[600]),
+            child: const Icon(Icons.people_alt_rounded,
+                size: 90, color: Colors.white),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           Text(
             'Belum ada data',
             style: Styles.header.copyWith(
               fontSize: 22,
-              color: Colors.teal[700],
+              color: Colors.blueGrey[800],
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            'Tap tombol di bawah untuk menambahkan siswa baru',
+            'Tap tombol di kanan bawah untuk menambahkan siswa baru',
             style: Styles.sub.copyWith(
-              color: Colors.grey[700],
+              color: Colors.grey[600],
               fontSize: 15,
               height: 1.4,
             ),

@@ -38,8 +38,13 @@ class _FormScreenState extends State<FormScreen>
     kodePos: '',
   );
 
-  final List<Guardian> _guardians = [];
+  List<Guardian> _guardians = [
+    Guardian(name: '', relation: 'Ayah', address: ''),
+    Guardian(name: '', relation: 'Ibu', address: ''),
+    Guardian(name: '', relation: 'Wali', address: ''),
+  ];
 
+  double _formProgress = 0.7;
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
 
@@ -57,13 +62,17 @@ class _FormScreenState extends State<FormScreen>
       _telpCtrl.text = e.noTelp;
       _nikCtrl.text = e.nik;
       _alamat = e.alamat;
-      _guardians.addAll(e.guardians);
+      _guardians = e.guardians;
     }
 
-    _animCtrl =
-        AnimationController(vsync: this, duration: const Duration(seconds: 1));
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeIn);
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
     _animCtrl.forward();
+
+    _updateFormProgress();
   }
 
   @override
@@ -77,6 +86,27 @@ class _FormScreenState extends State<FormScreen>
     super.dispose();
   }
 
+  void _updateFormProgress() {
+    int filledFields = 0;
+    if (_nisnCtrl.text.isNotEmpty) filledFields++;
+    if (_namaCtrl.text.isNotEmpty) filledFields++;
+    if (_tempatCtrl.text.isNotEmpty) filledFields++;
+    if (_telpCtrl.text.isNotEmpty) filledFields++;
+    if (_nikCtrl.text.isNotEmpty) filledFields++;
+    if (_alamat.jalan.isNotEmpty) filledFields++;
+    if (_guardians.any((g) => g.name.isNotEmpty)) filledFields++;
+    setState(() {
+      _formProgress = filledFields / 7;
+    });
+  }
+
+  void _updateGuardians(List<Guardian> gs) {
+    setState(() {
+      _guardians = gs;
+      _updateFormProgress();
+    });
+  }
+
   Future<void> _pickDate() async {
     final d = await showDatePicker(
       context: context,
@@ -84,18 +114,14 @@ class _FormScreenState extends State<FormScreen>
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
-    if (d != null) setState(() => _tanggal = d);
-  }
-
-  void _addGuardian() {
-    setState(() {
-      _guardians.add(Guardian(name: '', relation: '', address: ''));
-    });
+    if (d != null) {
+      setState(() => _tanggal = d);
+      _updateFormProgress();
+    }
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    _formKey.currentState!.save();
 
     final provider = Provider.of<StudentProvider>(context, listen: false);
 
@@ -110,7 +136,7 @@ class _FormScreenState extends State<FormScreen>
         noTelp: _telpCtrl.text,
         nik: _nikCtrl.text,
         alamat: _alamat,
-        guardians: List.from(_guardians),
+        guardians: _guardians,
       );
     } else {
       final updated = Student(
@@ -124,7 +150,7 @@ class _FormScreenState extends State<FormScreen>
         noTelp: _telpCtrl.text,
         nik: _nikCtrl.text,
         alamat: _alamat,
-        guardians: List.from(_guardians),
+        guardians: _guardians,
       );
       provider.updateStudent(widget.editing!.id, updated);
     }
@@ -137,14 +163,14 @@ class _FormScreenState extends State<FormScreen>
       padding: const EdgeInsets.only(top: 16, bottom: 8),
       child: Row(
         children: [
-          Icon(icon, color: Colors.teal[700]),
+          Icon(icon, color: const Color(0xFF6B7280), size: 28),
           const SizedBox(width: 10),
           Text(
             text,
-            style: Styles.header.copyWith(
-              fontSize: 18,
-              color: Colors.teal[900],
-              fontWeight: FontWeight.bold,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF374151),
             ),
           ),
         ],
@@ -155,16 +181,30 @@ class _FormScreenState extends State<FormScreen>
   Widget _inputWrapper({required Widget child}) {
     return FadeTransition(
       opacity: _fadeAnim,
-      child: Card(
+      child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
-        elevation: 3,
-        shadowColor: Colors.teal.withOpacity(0.2),
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: child,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(16),
         ),
+        child: Padding(padding: const EdgeInsets.all(16), child: child),
+      ),
+    );
+  }
+
+  // 🔹 Helper dropdown item dengan icon
+  DropdownMenuItem<String> _buildDropdownItem(IconData icon, String text) {
+    return DropdownMenuItem(
+      value: text,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.teal),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+        ],
       ),
     );
   }
@@ -174,18 +214,14 @@ class _FormScreenState extends State<FormScreen>
     final isEditing = widget.editing != null;
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFE5E7EB),
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
         title: Text(isEditing ? '✏️ Edit Data Siswa' : '➕ Tambah Data Siswa'),
         flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.teal[300]!, Colors.teal[700]!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+          decoration: const BoxDecoration(
+            color: Color(0xFF00B4DB)
           ),
         ),
         shape: const RoundedRectangleBorder(
@@ -193,191 +229,182 @@ class _FormScreenState extends State<FormScreen>
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Progress bar
-              Row(
-                children: [
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      value: 0.7,
-                      backgroundColor: Colors.teal.withOpacity(0.2),
-                      valueColor: AlwaysStoppedAnimation(Colors.teal[700]),
-                      minHeight: 6,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text("70%", style: Styles.sub.copyWith(color: Colors.teal[700])),
-                ],
+              // Progress Bar
+              _inputWrapper(
+                child: LinearProgressIndicator(
+                  value: _formProgress,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: const AlwaysStoppedAnimation(Color(0xFF3B82F6)),
+                  minHeight: 8,
+                ),
               ),
-              const SizedBox(height: 25),
 
-              // Section: Data Pribadi
+              const SizedBox(height: 16),
               _sectionTitle("Data Pribadi", Icons.person),
               _inputWrapper(
-                child: TextFormField(
-                  controller: _nisnCtrl,
-                  decoration: Styles.inputDecoration('NISN'),
-                  keyboardType: TextInputType.number,
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'NISN harus diisi' : null,
-                ),
-              ),
-              _inputWrapper(
-                child: TextFormField(
-                  controller: _namaCtrl,
-                  decoration: Styles.inputDecoration('Nama Lengkap'),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Nama harus diisi' : null,
-                ),
-              ),
-              _inputWrapper(
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _jenisKelamin,
-                        items: ['Laki-laki', 'Perempuan']
-                            .map((e) =>
-                                DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (v) =>
-                            setState(() => _jenisKelamin = v ?? 'Laki-laki'),
-                        decoration: Styles.inputDecoration('Jenis Kelamin'),
+                    TextFormField(
+                      controller: _nisnCtrl,
+                      decoration: Styles.inputDecoration("NISN").copyWith(
+                        prefixIcon: const Icon(Icons.badge_outlined, color: Colors.teal),
                       ),
+                      onChanged: (_) => _updateFormProgress(),
+                      validator: (v) => v == null || v.isEmpty ? "Wajib diisi" : null,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _agama,
-                        items: [
-                          'Islam',
-                          'Kristen',
-                          'Katolik',
-                          'Hindu',
-                          'Budha',
-                          'Konghucu',
-                          'Lainnya'
-                        ]
-                            .map((e) =>
-                                DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (v) => setState(() => _agama = v ?? 'Islam'),
-                        decoration: Styles.inputDecoration('Agama'),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _namaCtrl,
+                      decoration: Styles.inputDecoration("Nama Lengkap").copyWith(
+                        prefixIcon: const Icon(Icons.person_outline, color: Colors.teal),
                       ),
+                      onChanged: (_) => _updateFormProgress(),
+                      validator: (v) => v == null || v.isEmpty ? "Wajib diisi" : null,
                     ),
-                  ],
-                ),
-              ),
-              _inputWrapper(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _tempatCtrl,
-                        decoration: Styles.inputDecoration('Tempat Lahir'),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Wajib diisi' : null,
+                    const SizedBox(height: 12),
+
+                    // 🔹 Jenis Kelamin
+                    DropdownButtonFormField<String>(
+                      value: _jenisKelamin,
+                      decoration: Styles.inputDecoration("Jenis Kelamin").copyWith(
+                        
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: InkWell(
-                        onTap: _pickDate,
-                        child: InputDecorator(
-                          decoration: Styles.inputDecoration('Tanggal Lahir'),
+                      dropdownColor: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
+                      items: [
+                        DropdownMenuItem(
+                          value: "Laki-laki",
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                  '${_tanggal.day}/${_tanggal.month}/${_tanggal.year}'),
-                              const Icon(Icons.calendar_today,
-                                  size: 18, color: Colors.teal),
+                            children: const [
+                              Icon(Icons.male, size: 20, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text("Laki-laki"),
                             ],
                           ),
                         ),
+                        DropdownMenuItem(
+                          value: "Perempuan",
+                          child: Row(
+                            children: const [
+                              Icon(Icons.female, size: 20, color: Colors.pink),
+                              SizedBox(width: 8),
+                              Text("Perempuan"),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setState(() => _jenisKelamin = val!);
+                        _updateFormProgress();
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 🔹 Agama
+                    DropdownButtonFormField<String>(
+                      value: _agama,
+                      decoration: Styles.inputDecoration("Agama").copyWith(
+                        
                       ),
+                      dropdownColor: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
+                      items: [
+                        _buildDropdownItem(Icons.mosque, "Islam"),
+                        _buildDropdownItem(Icons.church, "Kristen"),
+                        _buildDropdownItem(Icons.temple_hindu, "Hindu"),
+                        _buildDropdownItem(Icons.self_improvement, "Budha"),
+                        _buildDropdownItem(Icons.church_outlined, "Katolik"),
+                        _buildDropdownItem(Icons.forest, "Konghucu"),
+                      ],
+                      onChanged: (val) {
+                        setState(() => _agama = val!);
+                        _updateFormProgress();
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _tempatCtrl,
+                      decoration: Styles.inputDecoration("Tempat Lahir").copyWith(
+                        prefixIcon: const Icon(Icons.location_city, color: Colors.teal),
+                      ),
+                      onChanged: (_) => _updateFormProgress(),
+                    ),
+                    const SizedBox(height: 12),
+
+                    InkWell(
+                      onTap: _pickDate,
+                      child: InputDecorator(
+                        decoration: Styles.inputDecoration("Tanggal Lahir").copyWith(
+                          prefixIcon: const Icon(Icons.cake_outlined, color: Colors.teal),
+                        ),
+                        child: Text("${_tanggal.day}/${_tanggal.month}/${_tanggal.year}", style: const TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _telpCtrl,
+                      decoration: Styles.inputDecoration("No. Telepon").copyWith(
+                        prefixIcon: const Icon(Icons.phone_android, color: Colors.teal),
+                      ),
+                      keyboardType: TextInputType.phone,
+                      onChanged: (_) => _updateFormProgress(),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _nikCtrl,
+                      decoration: Styles.inputDecoration("NIK").copyWith(
+                        prefixIcon: const Icon(Icons.credit_card, color: Colors.teal),
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => _updateFormProgress(),
                     ),
                   ],
                 ),
               ),
-              _inputWrapper(
-                child: TextFormField(
-                  controller: _telpCtrl,
-                  decoration: Styles.inputDecoration('No. Telepon'),
-                  keyboardType: TextInputType.phone,
-                ),
-              ),
-              _inputWrapper(
-                child: TextFormField(
-                  controller: _nikCtrl,
-                  decoration: Styles.inputDecoration('NIK'),
-                  keyboardType: TextInputType.number,
-                ),
-              ),
 
-              const SizedBox(height: 25),
+              const SizedBox(height: 16),
               _sectionTitle("Alamat", Icons.home),
               _inputWrapper(
                 child: AddressWidget(
                   initial: _alamat,
-                  onChanged: (addr) => _alamat = addr,
+                  onChanged: (addr) {
+                    _alamat = addr;
+                    _updateFormProgress();
+                  },
                 ),
               ),
 
-              const SizedBox(height: 25),
-              _sectionTitle("Ortu / Wali", Icons.family_restroom),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("Tambah data ortu/wali",
-                      style: Styles.sub.copyWith(color: Colors.teal[900])),
-                  ElevatedButton.icon(
-                    onPressed: _addGuardian,
-                    icon: const Icon(Icons.add_circle_outline),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal[700],
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    label: const Text("Tambah"),
-                  ),
-                ],
+              const SizedBox(height: 16),
+              _sectionTitle("Orang Tua / Wali", Icons.family_restroom),
+              _inputWrapper(
+                child: GuardianWidget(
+                  guardians: _guardians,
+                  onChanged: _updateGuardians,
+                ),
               ),
-              const SizedBox(height: 8),
-              if (_guardians.isEmpty)
-                Text("Belum ada data orang tua/wali", style: Styles.sub),
-              ..._guardians.asMap().entries.map((e) {
-                final idx = e.key;
-                return GuardianWidget(
-                  guardian: _guardians[idx],
-                  onRemove: () => setState(() => _guardians.removeAt(idx)),
-                  onChanged: (g) => setState(() => _guardians[idx] = g),
-                );
-              }),
 
               const SizedBox(height: 100),
             ],
           ),
         ),
       ),
-
-      // Floating Save Button
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _submit,
-        icon: const Icon(Icons.save_alt, color: Colors.white),
-        label: Text(
-          isEditing ? "Simpan Perubahan" : "Simpan Data",
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        backgroundColor: Colors.teal[700],
+        icon: const Icon(Icons.save_alt),
+        label: Text(isEditing ? "Simpan Perubahan" : "Simpan Data"),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }
