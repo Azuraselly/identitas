@@ -236,15 +236,9 @@ class _FormScreenState extends State<FormScreen> with SingleTickerProviderStateM
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.person, size: 18, color: Color(0xFF00B4DB)),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                "Data Pribadi",
-                style: const TextStyle(fontSize: 14),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+            const Icon(Icons.person, size: 25, color: Color(0xFF00B4DB)),
+            const SizedBox(width: 0),   
+            
           ],
         ),
         isActive: _currentStep >= 0,
@@ -364,15 +358,9 @@ class _FormScreenState extends State<FormScreen> with SingleTickerProviderStateM
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.home, size: 18, color: Color(0xFF00B4DB)),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                "Alamat",
-                style: const TextStyle(fontSize: 14),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+            const Icon(Icons.home, size: 25, color: Color(0xFF00B4DB)),
+            const SizedBox(width: 0),
+            
           ],
         ),
         isActive: _currentStep >= 1,
@@ -408,15 +396,9 @@ class _FormScreenState extends State<FormScreen> with SingleTickerProviderStateM
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.family_restroom, size: 18, color: Color(0xFF00B4DB)),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                "Orang Tua",
-                style: const TextStyle(fontSize: 14),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+            const Icon(Icons.family_restroom, size: 25, color: Color(0xFF00B4DB)),
+            const SizedBox(width: 0),
+            
           ],
         ),
         isActive: _currentStep >= 2,
