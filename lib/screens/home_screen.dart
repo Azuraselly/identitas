@@ -48,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
             end: Alignment.bottomRight,
           ).createShader(bounds),
           child: const Text(
-            "Identitas Siswa",
+            "Data Siswa",
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,

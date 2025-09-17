@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
       create: (_) => StudentProvider(),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'Smart Form CRUD',
+        title: 'DataSiswa+',
         theme: ThemeData(
           primaryColor: const Color(0xFF1B5E20),
           scaffoldBackgroundColor: const Color(0xFFF6F7FB),
