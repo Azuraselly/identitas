@@ -4,11 +4,13 @@ import '../utils/styles.dart';
 
 class GuardianWidget extends StatefulWidget {
   final List<Guardian> guardians;
+  final String? studentId; // Tambahkan studentId untuk keperluan edit
   final void Function(List<Guardian>) onChanged;
 
   const GuardianWidget({
     super.key,
     required this.guardians,
+    this.studentId, // Opsional, diisi saat edit
     required this.onChanged,
   });
 
@@ -22,18 +24,26 @@ class _GuardianWidgetState extends State<GuardianWidget> {
   @override
   void initState() {
     super.initState();
+    // Inisialisasi guardians dengan studentId jika ada
     _guardians = widget.guardians.isNotEmpty
         ? widget.guardians
         : [
-            Guardian(name: '', relation: 'Ayah', address: ''),
-            Guardian(name: '', relation: 'Ibu', address: ''),
-            Guardian(name: '', relation: 'Wali', address: ''),
+            Guardian(studentId: widget.studentId ?? '', name: '', relation: 'Ayah', address: ''),
+            Guardian(studentId: widget.studentId ?? '', name: '', relation: 'Ibu', address: ''),
+            Guardian(studentId: widget.studentId ?? '', name: '', relation: 'Wali', address: ''),
           ];
   }
 
   void _updateGuardian(int index, Guardian g) {
     setState(() {
-      _guardians[index] = g;
+      // Pastikan studentId tetap terjaga
+      _guardians[index] = Guardian(
+        id: g.id,
+        studentId: widget.studentId ?? g.studentId,
+        name: g.name,
+        relation: g.relation,
+        address: g.address,
+      );
     });
     widget.onChanged(_guardians);
   }
@@ -131,6 +141,8 @@ class _GuardianFormState extends State<_GuardianForm> {
 
   void _emit() {
     widget.onChanged(Guardian(
+      id: widget.guardian.id, // Pertahankan ID jika ada
+      studentId: widget.guardian.studentId, // Pertahankan studentId
       name: _nameCtrl.text,
       relation: widget.guardian.relation,
       address: _addressCtrl.text,
@@ -138,48 +150,52 @@ class _GuardianFormState extends State<_GuardianForm> {
   }
 
   @override
-  Widget build(BuildContext context) {
-  return Column(
-    children: [
-      TextFormField(
-        controller: _nameCtrl,
-        decoration: Styles.inputDecoration("Nama Lengkap").copyWith(
-          prefixIcon: const Icon(Icons.person, color: Color(0xFF00B4DB)),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 14,  // atur tinggi biar teks lebih ke tengah
-            horizontal: 12,
-          ),
-        ),
-        validator: widget.isRequired
-            ? (v) => v == null || v.isEmpty
-                ? "Nama ${widget.guardian.relation} wajib diisi"
-                : null
-            : null,
-        onChanged: (_) => _emit(),
-      ),
-      const SizedBox(height: 12),
-      TextFormField(
-        controller: _addressCtrl,
-        decoration: Styles.inputDecoration("Alamat").copyWith(
-          prefixIcon: const Icon(Icons.location_on, color: Color(0xFF00B4DB)),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 14,
-            horizontal: 12,
-          ),
-        ),
-        maxLines: 1,
-        onChanged: (_) => _emit(),
-      ),
-    ],
-  );
-}
-
-      
+  void dispose() {
+    _nameCtrl.dispose();
+    _addressCtrl.dispose();
+    super.dispose();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TextFormField(
+          controller: _nameCtrl,
+          decoration: Styles.inputDecoration("Nama Lengkap").copyWith(
+            prefixIcon: const Icon(Icons.person, color: Color(0xFF00B4DB)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 14,
+              horizontal: 12,
+            ),
+          ),
+          validator: widget.isRequired
+              ? (v) => v == null || v.isEmpty
+                  ? "Nama ${widget.guardian.relation} wajib diisi"
+                  : null
+              : null,
+          onChanged: (_) => _emit(),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _addressCtrl,
+          decoration: Styles.inputDecoration("Alamat").copyWith(
+            prefixIcon: const Icon(Icons.location_on, color: Color(0xFF00B4DB)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 14,
+              horizontal: 12,
+            ),
+          ),
+          maxLines: 1,
+          onChanged: (_) => _emit(),
+        ),
+      ],
+    );
+  }
+}

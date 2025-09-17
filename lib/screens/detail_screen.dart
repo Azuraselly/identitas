@@ -13,6 +13,7 @@ class DetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<StudentProvider>(context, listen: false);
+    final guardians = provider.getGuardiansByStudentId(student.id);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -24,11 +25,9 @@ class DetailScreen extends StatelessWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF00B4DB), Color(0xFF0083B0)
-                  ],
+                  colors: [Color(0xFF00B4DB), Color(0xFF0083B0)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -119,20 +118,17 @@ class DetailScreen extends StatelessWidget {
                   children: [
                     _sectionTitle("Alamat"),
                     const SizedBox(height: 12),
-                    _infoRow(Icons.home_rounded, "Jalan", student.alamat.jalan),
+                    _infoRow(Icons.home_rounded, "Jalan", student.jalan),
                     _infoRow(Icons.location_on_rounded, "RT/RW",
-                        "${student.alamat.rt}/${student.alamat.rw}"),
-                    _infoRow(
-                        Icons.apartment_rounded, "Dusun", student.alamat.dusun),
-                    _infoRow(Icons.villa_rounded, "Desa", student.alamat.desa),
-                    _infoRow(Icons.map_rounded, "Kecamatan",
-                        student.alamat.kecamatan),
+                        "${student.rt}/${student.rw}"),
+                    _infoRow(Icons.apartment_rounded, "Dusun", student.dusun),
+                    _infoRow(Icons.villa_rounded, "Desa", student.desa),
+                    _infoRow(Icons.map_rounded, "Kecamatan", student.kecamatan),
                     _infoRow(Icons.location_city_rounded, "Kabupaten",
-                        student.alamat.kabupaten),
-                    _infoRow(
-                        Icons.public_rounded, "Provinsi", student.alamat.provinsi),
+                        student.kabupaten),
+                    _infoRow(Icons.public_rounded, "Provinsi", student.provinsi),
                     _infoRow(Icons.markunread_mailbox_rounded, "Kode Pos",
-                        student.alamat.kodePos),
+                        student.kodePos),
                   ],
                 ),
               ),
@@ -141,7 +137,7 @@ class DetailScreen extends StatelessWidget {
               // --- Orang Tua / Wali ---
               _sectionTitle("Orang Tua / Wali"),
               const SizedBox(height: 14),
-              ...student.guardians.map(
+              ...guardians.map(
                 (g) => _glassCard(
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
@@ -207,7 +203,6 @@ class DetailScreen extends StatelessWidget {
     );
   }
 
-  // --- Floating Action Buttons ---
   Widget _buildFAB(BuildContext context, StudentProvider provider) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -216,7 +211,9 @@ class DetailScreen extends StatelessWidget {
           heroTag: "edit",
           backgroundColor: Colors.blue.shade400,
           icon: const Icon(Icons.edit, color: Colors.white),
-          label: const Text("Edit"),
+          label: Text("Edit", 
+          style: TextStyle(color: Colors.white),
+          ),
           onPressed: () async {
             await Navigator.push(
               context,
@@ -234,7 +231,7 @@ class DetailScreen extends StatelessWidget {
           backgroundColor: Colors.redAccent,
           icon: const Icon(Icons.delete_forever, color: Colors.white),
           label: Text("Hapus",
-          style: TextStyle(color: Colors.black),
+          style: TextStyle(color: Colors.white),
           ),
           onPressed: () {
             _showDeleteDialog(context, provider);
@@ -244,7 +241,6 @@ class DetailScreen extends StatelessWidget {
     );
   }
 
-  // --- Glass Card ---
   Widget _glassCard({required Widget child}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
@@ -262,7 +258,6 @@ class DetailScreen extends StatelessWidget {
     );
   }
 
-  // --- Section Title ---
   Widget _sectionTitle(String title) {
     return Text(
       title,
@@ -274,7 +269,6 @@ class DetailScreen extends StatelessWidget {
     );
   }
 
-  // --- Info Row ---
   Widget _infoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -297,14 +291,12 @@ class DetailScreen extends StatelessWidget {
     );
   }
 
-  // --- Dialog Konfirmasi Hapus ---
   void _showDeleteDialog(BuildContext context, StudentProvider provider) async {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Dialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -337,9 +329,8 @@ class DetailScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: Text("Batal",
-                      style: TextStyle(color: Colors.black),
-                      ),
+                      child: const Text("Batal",
+                          style: TextStyle(color: Colors.black)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -357,9 +348,8 @@ class DetailScreen extends StatelessWidget {
                           Navigator.pop(context);
                         }
                       },
-                      child: Text("Hapus",
-                      style: TextStyle(color: Colors.black),
-                      ),
+                      child: const Text("Hapus",
+                          style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ],
@@ -371,12 +361,87 @@ class DetailScreen extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Data berhasil dihapus'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      _showSuccessDialog(context, "Data berhasil dihapus!");
     }
+  }
+
+  void _showSuccessDialog(BuildContext context, String message) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Success",
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, anim1, anim2) {
+        return Align(
+          alignment: Alignment.center,
+          child: Material(
+            color: Colors.transparent,
+            child: ScaleTransition(
+              scale: CurvedAnimation(
+                parent: anim1,
+                curve: Curves.easeOutBack,
+              ),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.75,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle_rounded,
+                        size: 70, color: Colors.green),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Berhasil!",
+                      style: Styles.header.copyWith(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green[700],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: Styles.sub.copyWith(fontSize: 16),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Oke",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return FadeTransition(
+          opacity: anim1,
+          child: child,
+        );
+      },
+    );
   }
 }

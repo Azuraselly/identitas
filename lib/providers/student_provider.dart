@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
-import 'package:connectivity_plus/connectivity_plus.dart'; // Tambahkan dependency ini di pubspec.yaml
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/student.dart';
 
 class StudentProvider extends ChangeNotifier {
   List<Student> _students = [];
+  Map<String, List<Guardian>> _guardians = {}; // Simpan guardians per student
   bool _isLoading = false;
   String? _error;
 
@@ -16,14 +17,12 @@ class StudentProvider extends ChangeNotifier {
   final _uuid = const Uuid();
   final supabase = Supabase.instance.client;
 
-  // 🔹 Fungsi untuk memeriksa koneksi internet sebelum operasi Supabase.
   Future<bool> _checkConnectivity() async {
     final connectivityResult = await Connectivity().checkConnectivity();
     return connectivityResult.contains(ConnectivityResult.mobile) ||
         connectivityResult.contains(ConnectivityResult.wifi);
   }
 
-  // 🔹 Load data dari Supabase dengan error handling untuk koneksi internet dan Supabase.
   Future<void> loadData() async {
     if (!await _checkConnectivity()) {
       _error = 'Tidak ada koneksi internet.';
@@ -37,10 +36,22 @@ class StudentProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      final response = await supabase.from('students').select();
-      _students = (response as List)
+      // Ambil data students
+      final studentResponse = await supabase.from('students').select();
+      _students = (studentResponse as List)
           .map((json) => Student.fromJson(json as Map<String, dynamic>))
           .toList();
+
+      // Ambil data guardians
+      final guardianResponse = await supabase.from('guardians').select();
+      _guardians = {};
+      for (var g in guardianResponse) {
+        final guardian = Guardian.fromJson(g as Map<String, dynamic>);
+        if (!_guardians.containsKey(guardian.studentId)) {
+          _guardians[guardian.studentId] = [];
+        }
+        _guardians[guardian.studentId]!.add(guardian);
+      }
     } on PostgrestException catch (e) {
       _error = 'Masalah koneksi Supabase: ${e.message}';
     } catch (e) {
@@ -51,8 +62,7 @@ class StudentProvider extends ChangeNotifier {
     }
   }
 
-  // 🔹 Create student ke Supabase dengan connectivity check.
-  Future<void> createStudent(Student s) async {
+  Future<void> createStudent(Student s, List<Guardian> guardians) async {
     if (!await _checkConnectivity()) {
       _error = 'Tidak ada koneksi internet.';
       notifyListeners();
@@ -62,9 +72,19 @@ class StudentProvider extends ChangeNotifier {
     try {
       final json = s.toJson();
       if (json['id'] == null || (json['id'] as String).isEmpty) {
-        json['id'] = _uuid.v4(); // generate UUID kalau kosong
+        json['id'] = _uuid.v4();
       }
+      // Insert ke tabel students
       await supabase.from('students').insert(json);
+
+      // Insert ke tabel guardians
+      for (var g in guardians) {
+        final guardianJson = g.toJson();
+        guardianJson['id'] = _uuid.v4();
+        guardianJson['student_id'] = json['id'];
+        await supabase.from('guardians').insert(guardianJson);
+      }
+
       await loadData();
     } on PostgrestException catch (e) {
       _error = 'Masalah koneksi Supabase: ${e.message}';
@@ -77,7 +97,6 @@ class StudentProvider extends ChangeNotifier {
     }
   }
 
-  // 🔹 Tambah dari form
   Future<void> addNewFromForm({
     required String nisn,
     required String nama,
@@ -87,7 +106,15 @@ class StudentProvider extends ChangeNotifier {
     required DateTime tanggalLahir,
     required String noTelp,
     required String nik,
-    required Address alamat,
+    required String jalan,
+    required String rt,
+    required String rw,
+    required String dusun,
+    required String desa,
+    required String kecamatan,
+    required String kabupaten,
+    required String provinsi,
+    required String kodePos,
     required List<Guardian> guardians,
   }) async {
     final student = Student(
@@ -100,14 +127,20 @@ class StudentProvider extends ChangeNotifier {
       tanggalLahir: tanggalLahir,
       noTelp: noTelp,
       nik: nik,
-      alamat: alamat,
-      guardians: guardians,
+      jalan: jalan,
+      rt: rt,
+      rw: rw,
+      dusun: dusun,
+      desa: desa,
+      kecamatan: kecamatan,
+      kabupaten: kabupaten,
+      provinsi: provinsi,
+      kodePos: kodePos,
     );
-    await createStudent(student);
+    await createStudent(student, guardians);
   }
 
-  // 🔹 Update student dengan connectivity check.
-  Future<void> updateStudent(String id, Student newStudent) async {
+  Future<void> updateStudent(String id, Student newStudent, List<Guardian> guardians) async {
     if (!await _checkConnectivity()) {
       _error = 'Tidak ada koneksi internet.';
       notifyListeners();
@@ -116,7 +149,18 @@ class StudentProvider extends ChangeNotifier {
 
     try {
       final json = newStudent.toJson();
+      // Update tabel students
       await supabase.from('students').update(json).eq('id', id);
+
+      // Hapus guardians lama dan tambahkan yang baru
+      await supabase.from('guardians').delete().eq('student_id', id);
+      for (var g in guardians) {
+        final guardianJson = g.toJson();
+        guardianJson['id'] = _uuid.v4();
+        guardianJson['student_id'] = id;
+        await supabase.from('guardians').insert(guardianJson);
+      }
+
       await loadData();
     } on PostgrestException catch (e) {
       _error = 'Masalah koneksi Supabase: ${e.message}';
@@ -129,7 +173,6 @@ class StudentProvider extends ChangeNotifier {
     }
   }
 
-  // 🔹 Delete student dengan connectivity check.
   Future<void> deleteStudent(String id) async {
     if (!await _checkConnectivity()) {
       _error = 'Tidak ada koneksi internet.';
@@ -138,6 +181,7 @@ class StudentProvider extends ChangeNotifier {
     }
 
     try {
+      // Hapus dari students (guardians otomatis terhapus karena ON DELETE CASCADE)
       await supabase.from('students').delete().eq('id', id);
       await loadData();
     } on PostgrestException catch (e) {
@@ -151,12 +195,15 @@ class StudentProvider extends ChangeNotifier {
     }
   }
 
-  // 🔹 Get by ID
   Student? getById(String id) {
     try {
       return _students.firstWhere((s) => s.id == id);
     } catch (_) {
       return null;
     }
+  }
+
+  List<Guardian> getGuardiansByStudentId(String studentId) {
+    return _guardians[studentId] ?? [];
   }
 }

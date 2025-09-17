@@ -14,8 +14,7 @@ class FormScreen extends StatefulWidget {
   State<FormScreen> createState() => _FormScreenState();
 }
 
-class _FormScreenState extends State<FormScreen>
-    with SingleTickerProviderStateMixin {
+class _FormScreenState extends State<FormScreen> with SingleTickerProviderStateMixin {
   final _formKeys = [
     GlobalKey<FormState>(), // Step 1
     GlobalKey<FormState>(), // Step 2
@@ -32,22 +31,21 @@ class _FormScreenState extends State<FormScreen>
   final _telpCtrl = TextEditingController();
   final _nikCtrl = TextEditingController();
 
-  Address _alamat = Address(
-    jalan: '',
-    rt: '',
-    rw: '',
-    dusun: '',
-    desa: '',
-    kecamatan: '',
-    kabupaten: '',
-    provinsi: '',
-    kodePos: '',
-  );
+  // Alamat fields
+  String _jalan = '';
+  String _rt = '';
+  String _rw = '';
+  String _dusun = '';
+  String _desa = '';
+  String _kecamatan = '';
+  String _kabupaten = '';
+  String _provinsi = '';
+  String _kodePos = '';
 
   List<Guardian> _guardians = [
-    Guardian(name: '', relation: 'Ayah', address: ''),
-    Guardian(name: '', relation: 'Ibu', address: ''),
-    Guardian(name: '', relation: 'Wali', address: ''),
+    Guardian(studentId: '', name: '', relation: 'Ayah', address: ''),
+    Guardian(studentId: '', name: '', relation: 'Ibu', address: ''),
+    Guardian(studentId: '', name: '', relation: 'Wali', address: ''),
   ];
 
   int _currentStep = 0;
@@ -65,8 +63,18 @@ class _FormScreenState extends State<FormScreen>
       _tanggal = e.tanggalLahir;
       _telpCtrl.text = e.noTelp;
       _nikCtrl.text = e.nik;
-      _alamat = e.alamat;
-      _guardians = e.guardians;
+      _jalan = e.jalan;
+      _rt = e.rt;
+      _rw = e.rw;
+      _dusun = e.dusun;
+      _desa = e.desa;
+      _kecamatan = e.kecamatan;
+      _kabupaten = e.kabupaten;
+      _provinsi = e.provinsi;
+      _kodePos = e.kodePos;
+      // Ambil guardians dari provider
+      _guardians = Provider.of<StudentProvider>(context, listen: false)
+          .getGuardiansByStudentId(e.id);
     }
   }
 
@@ -168,7 +176,15 @@ class _FormScreenState extends State<FormScreen>
           tanggalLahir: _tanggal,
           noTelp: _telpCtrl.text,
           nik: _nikCtrl.text,
-          alamat: _alamat,
+          jalan: _jalan,
+          rt: _rt,
+          rw: _rw,
+          dusun: _dusun,
+          desa: _desa,
+          kecamatan: _kecamatan,
+          kabupaten: _kabupaten,
+          provinsi: _provinsi,
+          kodePos: _kodePos,
           guardians: _guardians,
         );
       } else {
@@ -182,10 +198,17 @@ class _FormScreenState extends State<FormScreen>
           tanggalLahir: _tanggal,
           noTelp: _telpCtrl.text,
           nik: _nikCtrl.text,
-          alamat: _alamat,
-          guardians: _guardians,
+          jalan: _jalan,
+          rt: _rt,
+          rw: _rw,
+          dusun: _dusun,
+          desa: _desa,
+          kecamatan: _kecamatan,
+          kabupaten: _kabupaten,
+          provinsi: _provinsi,
+          kodePos: _kodePos,
         );
-        await provider.updateStudent(widget.editing!.id, updated);
+        await provider.updateStudent(widget.editing!.id, updated, _guardians);
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -356,8 +379,28 @@ class _FormScreenState extends State<FormScreen>
         content: Form(
           key: _formKeys[1],
           child: AddressWidget(
-            initial: _alamat,
-            onChanged: (addr) => _alamat = addr,
+            initialJalan: _jalan,
+            initialRt: _rt,
+            initialRw: _rw,
+            initialDusun: _dusun,
+            initialDesa: _desa,
+            initialKecamatan: _kecamatan,
+            initialKabupaten: _kabupaten,
+            initialProvinsi: _provinsi,
+            initialKodePos: _kodePos,
+            onChanged: (jalan, rt, rw, dusun, desa, kecamatan, kabupaten, provinsi, kodePos) {
+              setState(() {
+                _jalan = jalan;
+                _rt = rt;
+                _rw = rw;
+                _dusun = dusun;
+                _desa = desa;
+                _kecamatan = kecamatan;
+                _kabupaten = kabupaten;
+                _provinsi = provinsi;
+                _kodePos = kodePos;
+              });
+            },
           ),
         ),
       ),

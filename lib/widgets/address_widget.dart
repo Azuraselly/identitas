@@ -1,20 +1,48 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/student.dart';
 import '../utils/styles.dart';
 
 class AddressWidget extends StatefulWidget {
-  final Address initial;
-  final void Function(Address) onChanged;
-  const AddressWidget({super.key, required this.initial, required this.onChanged});
+  final String initialJalan;
+  final String initialRt;
+  final String initialRw;
+  final String initialDusun;
+  final String initialDesa;
+  final String initialKecamatan;
+  final String initialKabupaten;
+  final String initialProvinsi;
+  final String initialKodePos;
+  final void Function(
+      String jalan,
+      String rt,
+      String rw,
+      String dusun,
+      String desa,
+      String kecamatan,
+      String kabupaten,
+      String provinsi,
+      String kodePos) onChanged;
+
+  const AddressWidget({
+    super.key,
+    required this.initialJalan,
+    required this.initialRt,
+    required this.initialRw,
+    required this.initialDusun,
+    required this.initialDesa,
+    required this.initialKecamatan,
+    required this.initialKabupaten,
+    required this.initialProvinsi,
+    required this.initialKodePos,
+    required this.onChanged,
+  });
 
   @override
   State<AddressWidget> createState() => _AddressWidgetState();
 }
 
 class _AddressWidgetState extends State<AddressWidget> {
-  late Address addr;
   final _jalan = TextEditingController();
   final _rt = TextEditingController();
   final _rw = TextEditingController();
@@ -32,21 +60,19 @@ class _AddressWidgetState extends State<AddressWidget> {
   @override
   void initState() {
     super.initState();
-    addr = widget.initial;
-    _jalan.text = addr.jalan;
-    _rt.text = addr.rt;
-    _rw.text = addr.rw;
-    _dusun.text = addr.dusun;
-    _desa.text = addr.desa;
-    _kecamatan.text = addr.kecamatan;
-    _kabupaten.text = addr.kabupaten;
-    _provinsi.text = addr.provinsi;
-    _kodepos.text = addr.kodePos;
+    _jalan.text = widget.initialJalan;
+    _rt.text = widget.initialRt;
+    _rw.text = widget.initialRw;
+    _dusun.text = widget.initialDusun;
+    _desa.text = widget.initialDesa;
+    _kecamatan.text = widget.initialKecamatan;
+    _kabupaten.text = widget.initialKabupaten;
+    _provinsi.text = widget.initialProvinsi;
+    _kodepos.text = widget.initialKodePos;
 
     _fetchDusunSuggestions();
   }
 
-  // 🔹 Fungsi untuk fetch suggestion dusun dari Supabase dengan error handling.
   Future<void> _fetchDusunSuggestions() async {
     setState(() {
       _isLoading = true;
@@ -88,7 +114,6 @@ class _AddressWidgetState extends State<AddressWidget> {
     }
   }
 
-  // 🔹 Fungsi untuk auto-fill fields berdasarkan dusun terpilih.
   Future<void> _autoFillFromDusun(String selectedDusun) async {
     setState(() {
       _isLoading = true;
@@ -122,7 +147,7 @@ class _AddressWidgetState extends State<AddressWidget> {
           _provinsi.text = data['provinsi'] ?? '';
           _isLoading = false;
         });
-        _emit(); // Ensure emit is called after auto-fill
+        _emit();
       } else {
         setState(() {
           _errorMessage = 'Data tidak ditemukan untuk dusun ini.';
@@ -138,18 +163,17 @@ class _AddressWidgetState extends State<AddressWidget> {
   }
 
   void _emit() {
-    addr = Address(
-      jalan: _jalan.text,
-      rt: _rt.text,
-      rw: _rw.text,
-      dusun: _dusun.text,
-      desa: _desa.text,
-      kecamatan: _kecamatan.text,
-      kabupaten: _kabupaten.text,
-      provinsi: _provinsi.text,
-      kodePos: _kodepos.text,
+    widget.onChanged(
+      _jalan.text,
+      _rt.text,
+      _rw.text,
+      _dusun.text,
+      _desa.text,
+      _kecamatan.text,
+      _kabupaten.text,
+      _provinsi.text,
+      _kodepos.text,
     );
-    widget.onChanged(addr);
   }
 
   @override
