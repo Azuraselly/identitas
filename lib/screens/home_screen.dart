@@ -16,16 +16,28 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = "";
 
   @override
+  void initState() {
+    super.initState();
+    // Load data dari Supabase setelah widget siap
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = Provider.of<StudentProvider>(context, listen: false);
+      provider.loadData();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final provider = Provider.of<StudentProvider>(context);
     final filtered = provider.students
-        .where((s) =>
-            s.nama.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            s.nisn.contains(_searchQuery))
+        .where(
+          (s) =>
+              s.nama.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              s.nisn.contains(_searchQuery),
+        )
         .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // background soft putih abu
+      backgroundColor: const Color(0xFFF8FAFC), // Soft white-gray background
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -40,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Colors.white, // jadi ketimpa gradient
+              color: Colors.white,
               letterSpacing: 0.5,
             ),
           ),
@@ -59,37 +71,72 @@ class _HomeScreenState extends State<HomeScreen> {
                 hintStyle: TextStyle(color: Colors.grey[500], fontSize: 15),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
-                  borderSide: BorderSide(color: Colors.teal.withOpacity(0.2)),
+                  borderSide: BorderSide(
+                    color: Color(0xFF00B4DB).withOpacity(0.2),
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
-                  borderSide: const BorderSide(color: Color(0xFF0083B0), width: 1.5),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF0083B0),
+                    width: 1.5,
+                  ),
                 ),
               ),
               onChanged: (val) => setState(() => _searchQuery = val),
             ),
           ),
+          // Loading or Error State
           Expanded(
-            child: filtered.isEmpty
-                ? _buildEmptyState()
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      final s = filtered[index];
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeInOut,
-                        child: StudentCard(student: s),
-                      );
-                    },
-                  ),
+            child: provider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : provider.error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error, size: 64, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text('Error: ${provider.error}'),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => provider.loadData(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF00B4DB),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'Retry',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : filtered.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 16),
+                            itemBuilder: (context, index) {
+                              final s = filtered[index];
+                              return AnimatedContainer(
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeInOut,
+                                child: StudentCard(student: s),
+                              );
+                            },
+                          ),
           ),
         ],
       ),
@@ -109,13 +156,15 @@ class _HomeScreenState extends State<HomeScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (ctx) => const FormScreen()),
-          );
+          ).then((_) {
+            // Reload data setelah kembali dari FormScreen
+            Provider.of<StudentProvider>(context, listen: false).loadData();
+          });
         },
       ),
     );
   }
 
-  /// Tampilan ketika data kosong
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -137,11 +186,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.teal.withOpacity(0.25),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
-                )
+                ),
               ],
             ),
-            child: const Icon(Icons.people_alt_rounded,
-                size: 90, color: Colors.white),
+            child: const Icon(
+              Icons.people_alt_rounded,
+              size: 90,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 28),
           Text(

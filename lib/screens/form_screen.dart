@@ -16,7 +16,13 @@ class FormScreen extends StatefulWidget {
 
 class _FormScreenState extends State<FormScreen>
     with SingleTickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
+  final _formKeys = [
+    GlobalKey<FormState>(), // Step 1
+    GlobalKey<FormState>(), // Step 2
+    GlobalKey<FormState>(), // Step 3
+  ];
+
+  // Controllers
   final _nisnCtrl = TextEditingController();
   final _namaCtrl = TextEditingController();
   String _jenisKelamin = 'Laki-laki';
@@ -44,9 +50,7 @@ class _FormScreenState extends State<FormScreen>
     Guardian(name: '', relation: 'Wali', address: ''),
   ];
 
-  double _formProgress = 0.7;
-  late AnimationController _animCtrl;
-  late Animation<double> _fadeAnim;
+  int _currentStep = 0;
 
   @override
   void initState() {
@@ -64,15 +68,6 @@ class _FormScreenState extends State<FormScreen>
       _alamat = e.alamat;
       _guardians = e.guardians;
     }
-
-    _animCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
-    _animCtrl.forward();
-
-    _updateFormProgress();
   }
 
   @override
@@ -82,29 +77,7 @@ class _FormScreenState extends State<FormScreen>
     _tempatCtrl.dispose();
     _telpCtrl.dispose();
     _nikCtrl.dispose();
-    _animCtrl.dispose();
     super.dispose();
-  }
-
-  void _updateFormProgress() {
-    int filledFields = 0;
-    if (_nisnCtrl.text.isNotEmpty) filledFields++;
-    if (_namaCtrl.text.isNotEmpty) filledFields++;
-    if (_tempatCtrl.text.isNotEmpty) filledFields++;
-    if (_telpCtrl.text.isNotEmpty) filledFields++;
-    if (_nikCtrl.text.isNotEmpty) filledFields++;
-    if (_alamat.jalan.isNotEmpty) filledFields++;
-    if (_guardians.any((g) => g.name.isNotEmpty)) filledFields++;
-    setState(() {
-      _formProgress = filledFields / 7;
-    });
-  }
-
-  void _updateGuardians(List<Guardian> gs) {
-    setState(() {
-      _guardians = gs;
-      _updateFormProgress();
-    });
   }
 
   Future<void> _pickDate() async {
@@ -114,97 +87,363 @@ class _FormScreenState extends State<FormScreen>
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
-    if (d != null) {
-      setState(() => _tanggal = d);
-      _updateFormProgress();
-    }
+    if (d != null) setState(() => _tanggal = d);
   }
 
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<bool> _showConfirmDialog(bool isEdit) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+            contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+            title: Row(
+              children: [
+                Icon(
+                  isEdit ? Icons.edit_note : Icons.save_alt,
+                  color: isEdit ? Colors.orange : Colors.blue,
+                  size: 28,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isEdit ? 'Ubah Data?' : 'Simpan Data?',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              isEdit
+                  ? 'Apakah Anda yakin ingin mengubah data siswa ini?'
+                  : 'Apakah Anda yakin ingin menyimpan data siswa baru ini?',
+              style: TextStyle(color: Colors.grey[700], fontSize: 15),
+            ),
+            actions: [
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isEdit ? Colors.orange : Colors.blue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text(
+                  'Ya',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _submit() async {
+    if (_currentStep < 2) return;
+    if (!_formKeys.every((key) => key.currentState!.validate())) return;
+
+    final isEdit = widget.editing != null;
+    final confirmed = await _showConfirmDialog(isEdit);
+    if (!confirmed) return;
 
     final provider = Provider.of<StudentProvider>(context, listen: false);
 
-    if (widget.editing == null) {
-      provider.addNewFromForm(
-        nisn: _nisnCtrl.text,
-        nama: _namaCtrl.text,
-        jenisKelamin: _jenisKelamin,
-        agama: _agama,
-        tempatLahir: _tempatCtrl.text,
-        tanggalLahir: _tanggal,
-        noTelp: _telpCtrl.text,
-        nik: _nikCtrl.text,
-        alamat: _alamat,
-        guardians: _guardians,
-      );
-    } else {
-      final updated = Student(
-        id: widget.editing!.id,
-        nisn: _nisnCtrl.text,
-        nama: _namaCtrl.text,
-        jenisKelamin: _jenisKelamin,
-        agama: _agama,
-        tempatLahir: _tempatCtrl.text,
-        tanggalLahir: _tanggal,
-        noTelp: _telpCtrl.text,
-        nik: _nikCtrl.text,
-        alamat: _alamat,
-        guardians: _guardians,
-      );
-      provider.updateStudent(widget.editing!.id, updated);
-    }
-
-    Navigator.pop(context);
-  }
-
-  Widget _sectionTitle(String text, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFF6B7280), size: 28),
-          const SizedBox(width: 10),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF374151),
+    try {
+      if (!isEdit) {
+        await provider.addNewFromForm(
+          nisn: _nisnCtrl.text,
+          nama: _namaCtrl.text,
+          jenisKelamin: _jenisKelamin,
+          agama: _agama,
+          tempatLahir: _tempatCtrl.text,
+          tanggalLahir: _tanggal,
+          noTelp: _telpCtrl.text,
+          nik: _nikCtrl.text,
+          alamat: _alamat,
+          guardians: _guardians,
+        );
+      } else {
+        final updated = Student(
+          id: widget.editing!.id,
+          nisn: _nisnCtrl.text,
+          nama: _namaCtrl.text,
+          jenisKelamin: _jenisKelamin,
+          agama: _agama,
+          tempatLahir: _tempatCtrl.text,
+          tanggalLahir: _tanggal,
+          noTelp: _telpCtrl.text,
+          nik: _nikCtrl.text,
+          alamat: _alamat,
+          guardians: _guardians,
+        );
+        await provider.updateStudent(widget.editing!.id, updated);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isEdit ? 'Data berhasil diubah' : 'Data berhasil disimpan',
             ),
+            backgroundColor: Colors.green,
           ),
-        ],
-      ),
-    );
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
-  Widget _inputWrapper({required Widget child}) {
-    return FadeTransition(
-      opacity: _fadeAnim,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF3F4F6),
-          borderRadius: BorderRadius.circular(16),
+  List<Step> _buildSteps() {
+    return [
+      Step(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.person, size: 18, color: Color(0xFF00B4DB)),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                "Data Pribadi",
+                style: const TextStyle(fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
-        child: Padding(padding: const EdgeInsets.all(16), child: child),
+        isActive: _currentStep >= 0,
+        content: Form(
+          key: _formKeys[0],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTextField(
+                _nisnCtrl,
+                "NISN",
+                icon: Icons.badge,
+                validator: (v) => v == null || v.isEmpty
+                    ? "NISN wajib diisi"
+                    : v.length != 10
+                        ? "NISN harus 10 karakter"
+                        : null,
+                type: TextInputType.number,
+              ),
+              _buildTextField(
+                _namaCtrl,
+                "Nama Lengkap",
+                icon: Icons.person,
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Nama lengkap wajib diisi" : null,
+              ),
+              _buildDropdown(
+                label: "Jenis Kelamin",
+                value: _jenisKelamin,
+                items: const ["Laki-laki", "Perempuan"],
+                onChanged: (val) => setState(() => _jenisKelamin = val!),
+                icon: Icons.wc,
+                validator: (v) => v == null || v.isEmpty
+                    ? "Jenis kelamin wajib dipilih"
+                    : null,
+              ),
+              _buildDropdown(
+                label: "Agama",
+                value: _agama,
+                items: const [
+                  "Islam",
+                  "Kristen",
+                  "Hindu",
+                  "Budha",
+                  "Katolik",
+                  "Konghucu",
+                ],
+                onChanged: (val) => setState(() => _agama = val!),
+                icon: Icons.church,
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Agama wajib dipilih" : null,
+              ),
+              _buildTextField(
+                _tempatCtrl,
+                "Tempat Lahir",
+                icon: Icons.location_city,
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Tempat lahir wajib diisi" : null,
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: _pickDate,
+                borderRadius: BorderRadius.circular(12),
+                child: InputDecorator(
+                  decoration: Styles.inputDecoration("Tanggal Lahir").copyWith(
+                    filled: true,
+                    fillColor: Colors.white,
+                    prefixIcon: const Icon(
+                      Icons.calendar_today,
+                      color: Color(0xFF00B4DB),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "${_tanggal.day}/${_tanggal.month}/${_tanggal.year}",
+                        style: const TextStyle(color: Colors.black87),
+                      ),
+                      const Icon(
+                        Icons.edit_calendar,
+                        size: 18,
+                        color: Color(0xFF00B4DB),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildTextField(
+                _telpCtrl,
+                "No. Telepon",
+                type: TextInputType.phone,
+                icon: Icons.phone,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return "No. Telepon wajib diisi";
+                  if (v.length < 12 || v.length > 15)
+                    return "No. Telepon minimal 12, maksimal 15 karakter";
+                  if (!RegExp(r'^[0-9]+$').hasMatch(v))
+                    return "Harus menggunakan angka";
+                  return null;
+                },
+              ),
+              _buildTextField(
+                _nikCtrl,
+                "NIK",
+                type: TextInputType.number,
+                icon: Icons.credit_card,
+                validator: (v) =>
+                    v == null || v.isEmpty ? "NIK wajib diisi" : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+      Step(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.home, size: 18, color: Color(0xFF00B4DB)),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                "Alamat",
+                style: const TextStyle(fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        isActive: _currentStep >= 1,
+        content: Form(
+          key: _formKeys[1],
+          child: AddressWidget(
+            initial: _alamat,
+            onChanged: (addr) => _alamat = addr,
+          ),
+        ),
+      ),
+      Step(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.family_restroom, size: 18, color: Color(0xFF00B4DB)),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                "Orang Tua",
+                style: const TextStyle(fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        isActive: _currentStep >= 2,
+        content: Form(
+          key: _formKeys[2],
+          child: GuardianWidget(
+            guardians: _guardians,
+            onChanged: (gs) => _guardians = gs,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildTextField(
+    TextEditingController ctrl,
+    String label, {
+    TextInputType type = TextInputType.text,
+    IconData? icon,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14.0),
+      child: TextFormField(
+        controller: ctrl,
+        keyboardType: type,
+        decoration: Styles.inputDecoration(label).copyWith(
+          filled: true,
+          fillColor: Colors.white,
+          prefixIcon: Icon(icon, color: const Color(0xFF00B4DB)),
+        ),
+        validator: validator,
       ),
     );
   }
 
-  // 🔹 Helper dropdown item dengan icon
-  DropdownMenuItem<String> _buildDropdownItem(IconData icon, String text) {
-    return DropdownMenuItem(
-      value: text,
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Colors.teal),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-        ],
+  Widget _buildDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+    IconData? icon,
+    Map<String, IconData>? itemIcons,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14.0),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: Styles.inputDecoration(label).copyWith(
+          filled: true,
+          fillColor: Colors.white,
+          prefixIcon: Icon(icon, color: const Color(0xFF00B4DB)),
+        ),
+        items: items.map((e) {
+          return DropdownMenuItem(
+            value: e,
+            child: Row(
+              children: [
+                if (itemIcons != null && itemIcons.containsKey(e))
+                  Icon(itemIcons[e], color: const Color(0xFF00B4DB), size: 18),
+                if (itemIcons != null && itemIcons.containsKey(e))
+                  const SizedBox(width: 6),
+                Text(e),
+              ],
+            ),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        validator: validator,
       ),
     );
   }
@@ -214,197 +453,117 @@ class _FormScreenState extends State<FormScreen>
     final isEditing = widget.editing != null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFE5E7EB),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        title: Text(isEditing ? '✏️ Edit Data Siswa' : '➕ Tambah Data Siswa'),
+        title: Text(
+          isEditing ? "✏️ Edit Data Siswa" : "➕ Tambah Data Siswa",
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF00B4DB)
+            gradient: LinearGradient(
+              colors: [Color(0xFF00B4DB), Color(0xFF0083B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
         ),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Progress Bar
-              _inputWrapper(
-                child: LinearProgressIndicator(
-                  value: _formProgress,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: const AlwaysStoppedAnimation(Color(0xFF3B82F6)),
-                  minHeight: 8,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              _sectionTitle("Data Pribadi", Icons.person),
-              _inputWrapper(
-                child: Column(
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF00B4DB),
+              secondary: Color(0xFF0083B0),
+            ),
+          ),
+          child: Stepper(
+            key: ValueKey(_currentStep),
+            type: StepperType.horizontal,
+            currentStep: _currentStep,
+            steps: _buildSteps(),
+            onStepContinue: () async {
+              if (_currentStep < 2) {
+                if (_formKeys[_currentStep].currentState!.validate()) {
+                  setState(() => _currentStep += 1);
+                }
+              } else {
+                await _submit();
+              }
+            },
+            onStepCancel: () {
+              if (_currentStep > 0) {
+                setState(() => _currentStep -= 1);
+              } else {
+                Navigator.pop(context);
+              }
+            },
+            controlsBuilder: (context, details) {
+              final isLastStep = _currentStep == 2;
+              return Padding(
+                padding: const EdgeInsets.only(top: 20.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    TextFormField(
-                      controller: _nisnCtrl,
-                      decoration: Styles.inputDecoration("NISN").copyWith(
-                        prefixIcon: const Icon(Icons.badge_outlined, color: Colors.teal),
+                    OutlinedButton.icon(
+                      onPressed: details.onStepCancel,
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        size: 16,
+                        color: Color(0xFF00B4DB),
                       ),
-                      onChanged: (_) => _updateFormProgress(),
-                      validator: (v) => v == null || v.isEmpty ? "Wajib diisi" : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _namaCtrl,
-                      decoration: Styles.inputDecoration("Nama Lengkap").copyWith(
-                        prefixIcon: const Icon(Icons.person_outline, color: Colors.teal),
-                      ),
-                      onChanged: (_) => _updateFormProgress(),
-                      validator: (v) => v == null || v.isEmpty ? "Wajib diisi" : null,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 🔹 Jenis Kelamin
-                    DropdownButtonFormField<String>(
-                      value: _jenisKelamin,
-                      decoration: Styles.inputDecoration("Jenis Kelamin").copyWith(
-                        
-                      ),
-                      dropdownColor: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
-                      items: [
-                        DropdownMenuItem(
-                          value: "Laki-laki",
-                          child: Row(
-                            children: const [
-                              Icon(Icons.male, size: 20, color: Colors.blue),
-                              SizedBox(width: 8),
-                              Text("Laki-laki"),
-                            ],
-                          ),
+                      label: const Text("Kembali"),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF00B4DB),
+                        side: const BorderSide(color: Color(0xFF00B4DB)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        DropdownMenuItem(
-                          value: "Perempuan",
-                          child: Row(
-                            children: const [
-                              Icon(Icons.female, size: 20, color: Colors.pink),
-                              SizedBox(width: 8),
-                              Text("Perempuan"),
-                            ],
-                          ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
                         ),
-                      ],
-                      onChanged: (val) {
-                        setState(() => _jenisKelamin = val!);
-                        _updateFormProgress();
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 🔹 Agama
-                    DropdownButtonFormField<String>(
-                      value: _agama,
-                      decoration: Styles.inputDecoration("Agama").copyWith(
-                        
                       ),
-                      dropdownColor: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
-                      items: [
-                        _buildDropdownItem(Icons.mosque, "Islam"),
-                        _buildDropdownItem(Icons.church, "Kristen"),
-                        _buildDropdownItem(Icons.temple_hindu, "Hindu"),
-                        _buildDropdownItem(Icons.self_improvement, "Budha"),
-                        _buildDropdownItem(Icons.church_outlined, "Katolik"),
-                        _buildDropdownItem(Icons.forest, "Konghucu"),
-                      ],
-                      onChanged: (val) {
-                        setState(() => _agama = val!);
-                        _updateFormProgress();
-                      },
                     ),
-
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _tempatCtrl,
-                      decoration: Styles.inputDecoration("Tempat Lahir").copyWith(
-                        prefixIcon: const Icon(Icons.location_city, color: Colors.teal),
+                    ElevatedButton.icon(
+                      onPressed: details.onStepContinue,
+                      icon: Icon(
+                        isLastStep ? Icons.save : Icons.arrow_forward_ios,
+                        color: Colors.white,
                       ),
-                      onChanged: (_) => _updateFormProgress(),
-                    ),
-                    const SizedBox(height: 12),
-
-                    InkWell(
-                      onTap: _pickDate,
-                      child: InputDecorator(
-                        decoration: Styles.inputDecoration("Tanggal Lahir").copyWith(
-                          prefixIcon: const Icon(Icons.cake_outlined, color: Colors.teal),
+                      label: Text(
+                        isLastStep ? "Simpan" : "Lanjut",
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 12,
                         ),
-                        child: Text("${_tanggal.day}/${_tanggal.month}/${_tanggal.year}", style: const TextStyle(fontSize: 16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        backgroundColor: isLastStep
+                            ? Colors.deepOrange
+                            : const Color(0xFF00B4DB),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _telpCtrl,
-                      decoration: Styles.inputDecoration("No. Telepon").copyWith(
-                        prefixIcon: const Icon(Icons.phone_android, color: Colors.teal),
-                      ),
-                      keyboardType: TextInputType.phone,
-                      onChanged: (_) => _updateFormProgress(),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _nikCtrl,
-                      decoration: Styles.inputDecoration("NIK").copyWith(
-                        prefixIcon: const Icon(Icons.credit_card, color: Colors.teal),
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => _updateFormProgress(),
                     ),
                   ],
                 ),
-              ),
-
-              const SizedBox(height: 16),
-              _sectionTitle("Alamat", Icons.home),
-              _inputWrapper(
-                child: AddressWidget(
-                  initial: _alamat,
-                  onChanged: (addr) {
-                    _alamat = addr;
-                    _updateFormProgress();
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              _sectionTitle("Orang Tua / Wali", Icons.family_restroom),
-              _inputWrapper(
-                child: GuardianWidget(
-                  guardians: _guardians,
-                  onChanged: _updateGuardians,
-                ),
-              ),
-
-              const SizedBox(height: 100),
-            ],
+              );
+            },
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _submit,
-        icon: const Icon(Icons.save_alt),
-        label: Text(isEditing ? "Simpan Perubahan" : "Simpan Data"),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }

@@ -46,6 +46,7 @@ class _AddressWidgetState extends State<AddressWidget> {
     _fetchDusunSuggestions();
   }
 
+  // 🔹 Fungsi untuk fetch suggestion dusun dari Supabase dengan error handling.
   Future<void> _fetchDusunSuggestions() async {
     setState(() {
       _isLoading = true;
@@ -53,7 +54,8 @@ class _AddressWidgetState extends State<AddressWidget> {
     });
 
     final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult.contains(ConnectivityResult.none)) {
+    if (!connectivityResult.contains(ConnectivityResult.mobile) &&
+        !connectivityResult.contains(ConnectivityResult.wifi)) {
       setState(() {
         _errorMessage = 'Tidak ada koneksi internet.';
         _isLoading = false;
@@ -67,7 +69,8 @@ class _AddressWidgetState extends State<AddressWidget> {
           .select('dusun')
           .order('dusun', ascending: true);
 
-      final Set<String> uniqueDusun = response.map((item) => item['dusun'] as String).toSet();
+      final Set<String> uniqueDusun =
+          response.map((item) => item['dusun'] as String).toSet();
       setState(() {
         _dusunSuggestions = uniqueDusun.toList();
         _isLoading = false;
@@ -85,6 +88,7 @@ class _AddressWidgetState extends State<AddressWidget> {
     }
   }
 
+  // 🔹 Fungsi untuk auto-fill fields berdasarkan dusun terpilih.
   Future<void> _autoFillFromDusun(String selectedDusun) async {
     setState(() {
       _isLoading = true;
@@ -92,7 +96,8 @@ class _AddressWidgetState extends State<AddressWidget> {
     });
 
     final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult.contains(ConnectivityResult.none)) {
+    if (!connectivityResult.contains(ConnectivityResult.mobile) &&
+        !connectivityResult.contains(ConnectivityResult.wifi)) {
       setState(() {
         _errorMessage = 'Tidak ada koneksi internet.';
         _isLoading = false;
@@ -110,13 +115,14 @@ class _AddressWidgetState extends State<AddressWidget> {
       if (response.isNotEmpty) {
         final data = response[0];
         setState(() {
-          _desa.text = data['desa'];
-          _kecamatan.text = data['kecamatan'];
-          _kabupaten.text = data['kabupaten'];
-          _kodepos.text = data['kode_pos'];
-          _provinsi.text = 'Jawa Timur';
+          _desa.text = data['desa'] ?? '';
+          _kecamatan.text = data['kecamatan'] ?? '';
+          _kabupaten.text = data['kabupaten'] ?? '';
+          _kodepos.text = data['kode_pos'] ?? '';
+          _provinsi.text = data['provinsi'] ?? '';
           _isLoading = false;
         });
+        _emit(); // Ensure emit is called after auto-fill
       } else {
         setState(() {
           _errorMessage = 'Data tidak ditemukan untuk dusun ini.';
@@ -147,44 +153,67 @@ class _AddressWidgetState extends State<AddressWidget> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    const iconColor = Color(0xFF3B82F6);
+  void dispose() {
+    _jalan.dispose();
+    _rt.dispose();
+    _rw.dispose();
+    _dusun.dispose();
+    _desa.dispose();
+    _kecamatan.dispose();
+    _kabupaten.dispose();
+    _provinsi.dispose();
+    _kodepos.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Alamat', style: Styles.header),
         const SizedBox(height: 8),
 
-        // Jalan
+        // Jalan dengan validator
         TextFormField(
           controller: _jalan,
           decoration: Styles.inputDecoration('Jalan').copyWith(
-            prefixIcon: const Icon(Icons.signpost_outlined, color: iconColor),
+            prefixIcon: const Icon(Icons.signpost_outlined, color: Color(0xFF00B4DB)),
           ),
+          validator: (value) => value == null || value.isEmpty ? 'Jalan wajib diisi' : null,
           onChanged: (_) => _emit(),
         ),
         const SizedBox(height: 8),
 
-        // RT / RW
+        // RT / RW dengan validator angka
         Row(
           children: [
-            Expanded(
+            Flexible(
               child: TextFormField(
                 controller: _rt,
                 decoration: Styles.inputDecoration('RT').copyWith(
-                  prefixIcon: const Icon(Icons.confirmation_num_outlined, color: iconColor),
+                  prefixIcon: const Icon(Icons.confirmation_num_outlined, color: Color(0xFF00B4DB)),
                 ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'RT wajib diisi';
+                  if (!RegExp(r'^[0-9]+$').hasMatch(value)) return 'Harus angka';
+                  return null;
+                },
                 onChanged: (_) => _emit(),
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(
+            Flexible(
               child: TextFormField(
                 controller: _rw,
                 decoration: Styles.inputDecoration('RW').copyWith(
-                  prefixIcon: const Icon(Icons.confirmation_num_outlined, color: iconColor),
+                  prefixIcon: const Icon(Icons.confirmation_num_outlined, color: Color(0xFF00B4DB)),
                 ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'RW wajib diisi';
+                  if (!RegExp(r'^[0-9]+$').hasMatch(value)) return 'Harus angka';
+                  return null;
+                },
                 onChanged: (_) => _emit(),
               ),
             ),
@@ -209,8 +238,9 @@ class _AddressWidgetState extends State<AddressWidget> {
               controller: controller,
               focusNode: focusNode,
               decoration: Styles.inputDecoration('Dusun (pilih dari daftar)').copyWith(
-                prefixIcon: const Icon(Icons.location_on_outlined, color: iconColor),
+                prefixIcon: const Icon(Icons.location_on_outlined, color: Color(0xFF00B4DB)),
               ),
+              validator: (value) => value == null || value.isEmpty ? 'Dusun wajib diisi' : null,
               onChanged: (_) => _emit(),
             );
           },
@@ -230,7 +260,7 @@ class _AddressWidgetState extends State<AddressWidget> {
                     itemBuilder: (context, index) {
                       final opt = options.elementAt(index);
                       return ListTile(
-                        leading: const Icon(Icons.home_work_outlined, color: iconColor),
+                        leading: const Icon(Icons.home_work_outlined, color: Color(0xFF00B4DB)),
                         title: Text(opt, style: const TextStyle(fontSize: 15)),
                         onTap: () => onSelected(opt),
                       );
@@ -248,35 +278,38 @@ class _AddressWidgetState extends State<AddressWidget> {
         ),
         const SizedBox(height: 8),
 
-        // Desa
+        // Desa dengan validator
         TextFormField(
           controller: _desa,
           decoration: Styles.inputDecoration('Desa').copyWith(
-            prefixIcon: const Icon(Icons.villa_outlined, color: iconColor),
+            prefixIcon: const Icon(Icons.villa_outlined, color: Color(0xFF00B4DB)),
           ),
+          validator: (value) => value == null || value.isEmpty ? 'Desa wajib diisi' : null,
           onChanged: (_) => _emit(),
         ),
         const SizedBox(height: 8),
 
-        // Kecamatan & Kabupaten
+        // Kecamatan & Kabupaten dengan validator
         Row(
           children: [
-            Expanded(
+            Flexible(
               child: TextFormField(
                 controller: _kecamatan,
                 decoration: Styles.inputDecoration('Kecamatan').copyWith(
-                  prefixIcon: const Icon(Icons.map_outlined, color: iconColor),
+                  prefixIcon: const Icon(Icons.map_outlined, color: Color(0xFF00B4DB)),
                 ),
+                validator: (value) => value == null || value.isEmpty ? 'Kecamatan wajib diisi' : null,
                 onChanged: (_) => _emit(),
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(
+            Flexible(
               child: TextFormField(
                 controller: _kabupaten,
                 decoration: Styles.inputDecoration('Kabupaten').copyWith(
-                  prefixIcon: const Icon(Icons.apartment_outlined, color: iconColor),
+                  prefixIcon: const Icon(Icons.apartment_outlined, color: Color(0xFF00B4DB)),
                 ),
+                validator: (value) => value == null || value.isEmpty ? 'Kabupaten wajib diisi' : null,
                 onChanged: (_) => _emit(),
               ),
             ),
@@ -284,26 +317,28 @@ class _AddressWidgetState extends State<AddressWidget> {
         ),
         const SizedBox(height: 8),
 
-        // Provinsi & Kode Pos
+        // Provinsi & Kode Pos dengan validator
         Row(
           children: [
-            Expanded(
+            Flexible(
               child: TextFormField(
                 controller: _provinsi,
                 decoration: Styles.inputDecoration('Provinsi').copyWith(
-                  prefixIcon: const Icon(Icons.flag_outlined, color: iconColor),
+                  prefixIcon: const Icon(Icons.flag_outlined, color: Color(0xFF00B4DB)),
                 ),
+                validator: (value) => value == null || value.isEmpty ? 'Provinsi wajib diisi' : null,
                 onChanged: (_) => _emit(),
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(
+            Flexible(
               child: TextFormField(
                 controller: _kodepos,
                 decoration: Styles.inputDecoration('Kode Pos').copyWith(
-                  prefixIcon: const Icon(Icons.markunread_mailbox_outlined, color: iconColor),
+                  prefixIcon: const Icon(Icons.markunread_mailbox_outlined, color: Color(0xFF00B4DB)),
                 ),
                 keyboardType: TextInputType.number,
+                validator: (value) => value == null || value.isEmpty ? 'Kode Pos wajib diisi' : null,
                 onChanged: (_) => _emit(),
               ),
             ),
